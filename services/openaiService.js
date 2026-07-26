@@ -15,6 +15,9 @@ const RestrictionPromptService = require('./restrictionPromptService');
 class OpenAIService {
   constructor() {
     this.client = null;
+    // Models discovered at runtime to reject the temperature parameter
+    // (e.g. OpenAI reasoning models). See createChatCompletion().
+    this.modelsWithoutTemperature = new Set();
   }
 
   initialize() {
@@ -34,6 +37,30 @@ class OpenAIService {
           apiKey: config.openai.apiKey
         });
       }
+    }
+  }
+
+  // Some models (e.g. OpenAI reasoning models such as the o-series or gpt-5
+  // families) only support the default temperature and reject any other value.
+  // Instead of maintaining a hardcoded model list, retry once without the
+  // temperature parameter when the API rejects it and remember the model, so
+  // every subsequent request skips the parameter without an extra round trip.
+  // Fixes #883.
+  async createChatCompletion(params) {
+    if ('temperature' in params && this.modelsWithoutTemperature.has(params.model)) {
+      const { temperature, ...paramsWithoutTemperature } = params;
+      params = paramsWithoutTemperature;
+    }
+    try {
+      return await this.client.chat.completions.create(params);
+    } catch (error) {
+      if (error?.code === 'unsupported_value' && error?.param === 'temperature' && 'temperature' in params) {
+        console.warn(`[WARNING] Model ${params.model} does not support temperature=${params.temperature}, retrying without it (subsequent requests will omit it)`);
+        this.modelsWithoutTemperature.add(params.model);
+        const { temperature, ...paramsWithoutTemperature } = params;
+        return await this.client.chat.completions.create(paramsWithoutTemperature);
+      }
+      throw error;
     }
   }
 
@@ -175,7 +202,7 @@ class OpenAIService {
 
       await writePromptToFile(systemPrompt, truncatedContent);
 
-      const response = await this.client.chat.completions.create({
+      const response = await this.createChatCompletion({
         model: model,
         messages: [
           {
@@ -299,7 +326,7 @@ class OpenAIService {
       const truncatedContent = await truncateToTokenLimit(content, availableTokens);
       const model = process.env.OPENAI_MODEL;
       // Make API request
-      const response = await this.client.chat.completions.create({
+      const response = await this.createChatCompletion({
         model: model,
         messages: [
           {
@@ -376,7 +403,7 @@ class OpenAIService {
 
       const model = process.env.OPENAI_MODEL || config.openai.model;
 
-      const response = await this.client.chat.completions.create({
+      const response = await this.createChatCompletion({
         model: model,
         messages: [
           {
@@ -406,7 +433,7 @@ class OpenAIService {
       if (!this.client) {
         throw new Error('OpenAI client not initialized - missing API key');
       }
-      const response = await this.client.chat.completions.create({
+      const response = await this.createChatCompletion({
         model: process.env.OPENAI_MODEL,
         messages: [
           {
