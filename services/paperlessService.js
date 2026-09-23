@@ -334,8 +334,18 @@ class PaperlessService {
           : [];
 
       if (tagsArray.length === 0) {
-        console.warn('[DEBUG] No valid tags to process');
-        return { tagIds: [], errors: [] };
+        console.warn('[DEBUG] No classification tags — still applying AI-processed tag if enabled');
+        const tagIds = [];
+        if (process.env.ADD_AI_PROCESSED_TAG === 'yes' && process.env.AI_PROCESSED_TAG_NAME) {
+          try {
+            let aiTag = await this.findExistingTag(process.env.AI_PROCESSED_TAG_NAME);
+            if (!aiTag) aiTag = await this.createTagSafely(process.env.AI_PROCESSED_TAG_NAME);
+            if (aiTag && aiTag.id) tagIds.push(aiTag.id);
+          } catch (error) {
+            console.error('[ERROR] processing AI tag:', error.message);
+          }
+        }
+        return { tagIds, errors: [] };
       }
   
       const tagIds = [];
