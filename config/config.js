@@ -115,14 +115,14 @@ module.exports = {
     "document_date": "YYYY-MM-DD",
     "language": "en/de/es/..."
   }`,
-  mustHavePrompt: `  Return the result EXCLUSIVELY as a JSON object. The Tags, Title and Document_Type MUST be in the language that is used in the document.:
+  mustHavePrompt: `  Return the result EXCLUSIVELY as a JSON object. The Title MUST be in the language that is used in the document. If a list of pre-existing document types or explicit instructions for tags/document types are given above, use those values verbatim (do NOT translate them into the document's language); otherwise use the document's language.:
   IMPORTANT: The custom_fields are optional and can be left out if not needed, only try to fill out the values if you find a matching information in the document.
   Do not change the value of field_name, only fill out the values. If the field is about money only add the number without currency and always use a . for decimal places.
   {
     "title": "xxxxx",
     "correspondent": "xxxxxxxx",
     "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
-    "document_type": "Invoice/Contract/...",
+    "document_type": "<document type>",
     "document_date": "YYYY-MM-DD",
     "language": "en/de/es/...",
     %CUSTOMFIELDS%
