@@ -122,6 +122,11 @@ class OpenAIService {
       } else {
         config.mustHavePrompt = config.mustHavePrompt.replace('%CUSTOMFIELDS%', customFieldsStr);
         systemPrompt = process.env.SYSTEM_PROMPT + '\n\n' + config.mustHavePrompt;
+        // Without this the model never sees the allowed types when tags or
+        // correspondents are restricted, and unmatched answers are dropped.
+        if (config.restrictToExistingDocumentTypes === 'yes' && existingDocumentTypesList.length > 0) {
+          systemPrompt = `Pre-existing document types (choose exactly one, verbatim): ${existingDocumentTypesList.join(', ')}\n\n` + systemPrompt;
+        }
         promptTags = '';
       }
 
